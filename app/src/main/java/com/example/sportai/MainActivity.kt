@@ -164,7 +164,7 @@ fun SportAnalystChatScreen(intent: Intent) {
                                     }
                                     "Gemini" -> {
                                         try {
-                                            if (geminiApiKey.isBlank()) throw IllegalStateException("Gemini API Key is missing. Please get an apikey and enterit below.")
+                                            if (geminiApiKey.isBlank()) throw IllegalStateException("Gemini API Key is missing.")
                                             val generativeModel = GenerativeModel(
                                                 modelName = "gemini-2.5-flash",
                                                 apiKey = geminiApiKey

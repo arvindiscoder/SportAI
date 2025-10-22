@@ -3,4 +3,12 @@
     <string name="new_gemini_chat_short_label">New Gemini Chat</string>
     <string name="new_gemini_chat_long_label">Start a new chat with Gemini</string>
     <string name="new_gemini_chat_disabled_message">Shortcut is disabled</string>
+
+    <string name="new_openai_chat_short_label">New OpenAI Chat</string>
+    <string name="new_openai_chat_long_label">Start a new chat with OpenAI</string>
+    <string name="new_openai_chat_disabled_message">Shortcut is disabled</string>
+
+    <string name="new_ollama_chat_short_label">New Ollama Chat</string>
+    <string name="new_ollama_chat_long_label">Start a new chat with Ollama</string>
+    <string name="new_ollama_chat_disabled_message">Shortcut is disabled</string>
 </resources>
