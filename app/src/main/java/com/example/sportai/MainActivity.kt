@@ -80,11 +80,12 @@ fun SportAnalystChatScreen(intent: Intent) {
     var promptTokens by remember { mutableStateOf(0) }
     var responseTokens by remember { mutableStateOf(0) }
 
-    val darkBackgroundColor = Color(0xFF0D1117)
-    val headerColor = Color(0xFF1F2937)
-    val userMessageColor = Color(0xFF3B82F6)
-    val aiMessageColor = Color(0xFF24292E)
-    val inputBackgroundColor = Color(0xFF161B22)
+    val darkBackgroundColor = Color(0xFF161b22)
+    val headerColor = Color(0xFF1f2937)
+    val userMessageColor = Color(0xFF3b82f6)
+    val aiMessageColor = Color(0xFF24292e)
+    val inputBackgroundColor = Color(0xFF161b22)
+    val highlightColor = Color(0xFF3b82f6)
 
     Scaffold(
         topBar = { TopAppBar(title = { Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) { Text("SPORT ", fontWeight = FontWeight.Bold, fontSize = 20.sp); Text("AI ", color = Color(0xFF4ADE80), fontWeight = FontWeight.Bold, fontSize = 20.sp); Text("ANALYST", fontWeight = FontWeight.Bold, fontSize = 20.sp) } }, actions = { IconButton(onClick = { messages = listOf(ChatMessageData("Hello! I am your **Advanced Sport AI Analyst**. Select a service and provide the necessary info to get started.", isUser = false)) }) { Icon(Icons.Default.Delete, contentDescription = "Reset Chat", tint = Color.Red) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = headerColor, titleContentColor = Color.White)) },
@@ -97,7 +98,7 @@ fun SportAnalystChatScreen(intent: Intent) {
         ) {
             LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.Bottom) { items(messages) { message -> ChatMessageItem(message, userMessageColor, aiMessageColor) } }
             Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(modifier = Modifier.fillMaxWidth()) { Button(onClick = { selectedService = "OpenAI" }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (selectedService == "OpenAI") Color(0xFF6F4E37) else Color(0xFF3C3C3E)), shape = MaterialTheme.shapes.medium) { if (selectedService == "OpenAI") { Icon(imageVector = Icons.Default.Done, contentDescription = "Selected", modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)) }; Text("OpenAI") }; Button(onClick = { selectedService = "Gemini" }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (selectedService == "Gemini") Color(0xFF6F4E37) else Color(0xFF3C3C3E)), shape = MaterialTheme.shapes.medium) { if (selectedService == "Gemini") { Icon(imageVector = Icons.Default.Done, contentDescription = "Selected", modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)) }; Text("Gemini") }; Button(onClick = { selectedService = "Ollama" }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (selectedService == "Ollama") Color(0xFF6F4E37) else Color(0xFF3C3C3E)), shape = MaterialTheme.shapes.medium) { if (selectedService == "Ollama") { Icon(imageVector = Icons.Default.Done, contentDescription = "Selected", modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)) }; Text("Ollama") } }
+                Row(modifier = Modifier.fillMaxWidth()) { Button(onClick = { selectedService = "OpenAI" }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (selectedService == "OpenAI") highlightColor else Color(0xFF3C3C3E)), shape = MaterialTheme.shapes.medium) { if (selectedService == "OpenAI") { Icon(imageVector = Icons.Default.Done, contentDescription = "Selected", modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)) }; Text("OpenAI") }; Button(onClick = { selectedService = "Gemini" }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (selectedService == "Gemini") highlightColor else Color(0xFF3C3C3E)), shape = MaterialTheme.shapes.medium) { if (selectedService == "Gemini") { Icon(imageVector = Icons.Default.Done, contentDescription = "Selected", modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)) }; Text("Gemini") }; Button(onClick = { selectedService = "Ollama" }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (selectedService == "Ollama") highlightColor else Color(0xFF3C3C3E)), shape = MaterialTheme.shapes.medium) { if (selectedService == "Ollama") { Icon(imageVector = Icons.Default.Done, contentDescription = "Selected", modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)) }; Text("Ollama") } }
                 Spacer(modifier = Modifier.height(16.dp))
                 when (selectedService) {
                     "OpenAI" -> {
@@ -163,9 +164,9 @@ fun SportAnalystChatScreen(intent: Intent) {
                                     }
                                     "Gemini" -> {
                                         try {
-                                            if (geminiApiKey.isBlank()) throw IllegalStateException("Gemini API Key is missing.")
+                                            if (geminiApiKey.isBlank()) throw IllegalStateException("Gemini API Key is missing. Please get an apikey and enterit below.")
                                             val generativeModel = GenerativeModel(
-                                                modelName = "gemini-pro",
+                                                modelName = "gemini-2.5-flash",
                                                 apiKey = geminiApiKey
                                             )
                                             val response = generativeModel.generateContent(query)
