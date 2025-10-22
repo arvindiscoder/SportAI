@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Sport AI</string>
+    <string name="new_gemini_chat_short_label">New Gemini Chat</string>
+    <string name="new_gemini_chat_long_label">Start a new chat with Gemini</string>
+    <string name="new_gemini_chat_disabled_message">Shortcut is disabled</string>
 </resources>

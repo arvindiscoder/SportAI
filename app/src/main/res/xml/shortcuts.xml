@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_gemini_chat"
+        android:enabled="true"
+        android:icon="@drawable/ic_gemini_shortcut"
+        android:shortcutShortLabel="@string/new_gemini_chat_short_label"
+        android:shortcutLongLabel="@string/new_gemini_chat_long_label"
+        android:shortcutDisabledMessage="@string/new_gemini_chat_disabled_message">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.example.sportai"
+            android:targetClass="com.example.sportai.MainActivity">
+            <extra android:name="service" android:value="gemini" />
+        </intent>
+        <categories android:name="android.shortcut.conversation" />
+    </shortcut>
+</shortcuts>

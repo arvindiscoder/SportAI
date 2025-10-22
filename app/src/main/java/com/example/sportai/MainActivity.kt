@@ -1,5 +1,6 @@
 package com.example.sportai
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -12,7 +13,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.*
@@ -25,37 +25,22 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.aallam.openai.api.chat.ChatCompletionRequest
+import com.aallam.openai.api.chat.ChatMessage
+import com.aallam.openai.api.chat.ChatRole
+import com.aallam.openai.api.model.ModelId
+import com.aallam.openai.client.OpenAI
 import com.example.sportai.ui.theme.SportAITheme
-import io.ktor.client.* 
-import io.ktor.client.call.*
-import io.ktor.client.engine.android.Android
-import io.ktor.client.plugins.contentnegotiation.* 
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.* 
-import io.ktor.serialization.kotlinx.json.*
+import com.google.ai.client.generativeai.GenerativeModel
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-
-// Data classes for Ollama API response
-@Serializable
-data class OllamaTagsResponse(val models: List<OllamaModel>)
-
-@Serializable
-data class OllamaModel(val name: String)
-
-@Serializable
-data class OllamaGenerateRequest(val model: String, val prompt: String, val stream: Boolean = false)
-
-@Serializable
-data class OllamaGenerateResponse(val response: String, val done: Boolean)
 
 // Data class to hold chat message information
-data class ChatMessage(val text: String, val isUser: Boolean, val sources: List<String> = emptyList())
+data class ChatMessageData(val text: String, val isUser: Boolean, val sources: List<String> = emptyList())
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,7 +48,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SportAITheme {
-                SportAnalystChatScreen()
+                SportAnalystChatScreen(intent)
             }
         }
     }
@@ -71,29 +56,29 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SportAnalystChatScreen() {
+fun SportAnalystChatScreen(intent: Intent) {
     var userInput by remember { mutableStateOf(TextFieldValue("")) }
-    var messages by remember { mutableStateOf(listOf(ChatMessage("Hello! I am your **Advanced Sport AI Analyst**. Select a service and provide the necessary info to get started.", isUser = false))) }
+    var messages by remember { mutableStateOf(listOf(ChatMessageData("Hello! I am your **Advanced Sport AI Analyst**. Select a service and provide the necessary info to get started.", isUser = false))) }
     var isLoading by remember { mutableStateOf(false) }
     var openAiApiKey by remember { mutableStateOf("") }
-    var ollamaUrl by remember { mutableStateOf("") }
-    var selectedService by remember { mutableStateOf("Ollama") }
+    var geminiApiKey by remember { mutableStateOf("") }
+    var selectedService by remember { mutableStateOf("OpenAI") }
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
-    var detectedModels by remember { mutableStateOf(emptyList<String>()) }
-    var selectedModel by remember { mutableStateOf<String?>(null) }
-    var isModelDropdownExpanded by remember { mutableStateOf(false) }
-    var isDetectingModels by remember { mutableStateOf(false) }
-
-    val client = remember {
-        HttpClient(Android) {
-            install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true })
-            }
+    // Handle shortcut intent
+    if (intent.action == Intent.ACTION_VIEW) {
+        val service = intent.getStringExtra("service")
+        if (service == "gemini") {
+            selectedService = "Gemini"
         }
     }
+
+    // Token Details State
+    var showTokenDetailsDialog by remember { mutableStateOf(false) }
+    var promptTokens by remember { mutableStateOf(0) }
+    var responseTokens by remember { mutableStateOf(0) }
 
     val darkBackgroundColor = Color(0xFF0D1117)
     val headerColor = Color(0xFF1F2937)
@@ -102,7 +87,7 @@ fun SportAnalystChatScreen() {
     val inputBackgroundColor = Color(0xFF161B22)
 
     Scaffold(
-        topBar = { TopAppBar(title = { Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) { Text("SPORT ", fontWeight = FontWeight.Bold, fontSize = 20.sp); Text("AI ", color = Color(0xFF4ADE80), fontWeight = FontWeight.Bold, fontSize = 20.sp); Text("ANALYST", fontWeight = FontWeight.Bold, fontSize = 20.sp) } }, actions = { IconButton(onClick = { messages = listOf(ChatMessage("Hello! I am your **Advanced Sport AI Analyst**. Select a service and provide the necessary info to get started.", isUser = false)) }) { Icon(Icons.Default.Delete, contentDescription = "Reset Chat", tint = Color.Red) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = headerColor, titleContentColor = Color.White)) },
+        topBar = { TopAppBar(title = { Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) { Text("SPORT ", fontWeight = FontWeight.Bold, fontSize = 20.sp); Text("AI ", color = Color(0xFF4ADE80), fontWeight = FontWeight.Bold, fontSize = 20.sp); Text("ANALYST", fontWeight = FontWeight.Bold, fontSize = 20.sp) } }, actions = { IconButton(onClick = { messages = listOf(ChatMessageData("Hello! I am your **Advanced Sport AI Analyst**. Select a service and provide the necessary info to get started.", isUser = false)) }) { Icon(Icons.Default.Delete, contentDescription = "Reset Chat", tint = Color.Red) } }, colors = TopAppBarDefaults.topAppBarColors(containerColor = headerColor, titleContentColor = Color.White)) },
         containerColor = darkBackgroundColor
     ) { innerPadding ->
         Column(
@@ -112,40 +97,24 @@ fun SportAnalystChatScreen() {
         ) {
             LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.Bottom) { items(messages) { message -> ChatMessageItem(message, userMessageColor, aiMessageColor) } }
             Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(modifier = Modifier.fillMaxWidth()) { Button(onClick = { selectedService = "OpenAI" }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (selectedService == "OpenAI") Color(0xFF6F4E37) else Color(0xFF3C3C3E)), shape = MaterialTheme.shapes.medium) { if (selectedService == "OpenAI") { Icon(imageVector = Icons.Default.Done, contentDescription = "Selected", modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)) }; Text("OpenAI") }; Button(onClick = { selectedService = "Ollama" }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (selectedService == "Ollama") Color(0xFF6F4E37) else Color(0xFF3C3C3E)), shape = MaterialTheme.shapes.medium) { if (selectedService == "Ollama") { Icon(imageVector = Icons.Default.Done, contentDescription = "Selected", modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)) }; Text("Ollama") } }
+                Row(modifier = Modifier.fillMaxWidth()) { Button(onClick = { selectedService = "OpenAI" }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (selectedService == "OpenAI") Color(0xFF6F4E37) else Color(0xFF3C3C3E)), shape = MaterialTheme.shapes.medium) { if (selectedService == "OpenAI") { Icon(imageVector = Icons.Default.Done, contentDescription = "Selected", modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)) }; Text("OpenAI") }; Button(onClick = { selectedService = "Gemini" }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (selectedService == "Gemini") Color(0xFF6F4E37) else Color(0xFF3C3C3E)), shape = MaterialTheme.shapes.medium) { if (selectedService == "Gemini") { Icon(imageVector = Icons.Default.Done, contentDescription = "Selected", modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)) }; Text("Gemini") }; Button(onClick = { selectedService = "Ollama" }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (selectedService == "Ollama") Color(0xFF6F4E37) else Color(0xFF3C3C3E)), shape = MaterialTheme.shapes.medium) { if (selectedService == "Ollama") { Icon(imageVector = Icons.Default.Done, contentDescription = "Selected", modifier = Modifier.size(16.dp)); Spacer(modifier = Modifier.width(4.dp)) }; Text("Ollama") } }
                 Spacer(modifier = Modifier.height(16.dp))
-                if (selectedService == "OpenAI") { OutlinedTextField(value = openAiApiKey, onValueChange = { openAiApiKey = it }, label = { Text("Enter your OpenAI API Key here") }, modifier = Modifier.fillMaxWidth(), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, cursorColor = Color.White, focusedBorderColor = userMessageColor, unfocusedBorderColor = Color.Gray)) } else {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedTextField(value = ollamaUrl, onValueChange = { ollamaUrl = it }, label = { Text("Ollama Host URL (e.g., http://192.168.1.5:11434)") }, modifier = Modifier.weight(1f), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, cursorColor = Color.White, focusedBorderColor = userMessageColor, unfocusedBorderColor = Color.Gray))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            // PING BUTTON
-                            Button(onClick = { 
-                                coroutineScope.launch {
-                                    try {
-                                        val cleanUrl = ollamaUrl.trimEnd('/')
-                                        val response: HttpResponse = client.get(cleanUrl)
-                                        if (response.status == HttpStatusCode.OK) {
-                                            Toast.makeText(context, "Ping Successful!", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "Ping Failed: Server responded with ${response.status}", Toast.LENGTH_LONG).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "Ping Failed: ${e.message}", Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            }, modifier = Modifier.height(56.dp)) {
-                                Text("Ping")
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                             Button(onClick = { coroutineScope.launch { isDetectingModels = true; try { val cleanUrl = ollamaUrl.trimEnd('/'); val response: OllamaTagsResponse = client.get("$cleanUrl/api/tags/").body(); detectedModels = response.models.map { it.name }; selectedModel = detectedModels.firstOrNull(); if (detectedModels.isEmpty()) { Toast.makeText(context, "No models found. Check URL and that Ollama is running.", Toast.LENGTH_SHORT).show() } } catch (e: Exception) { Toast.makeText(context, "Detection Failed: ${e.message}", Toast.LENGTH_LONG).show(); detectedModels = emptyList(); selectedModel = null }; isDetectingModels = false } }, modifier = Modifier.fillMaxWidth().height(56.dp), enabled = !isDetectingModels) { 
-                                if (isDetectingModels) { CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White) } else { Text("Detect Models") } 
-                            }
-                        }
-                        if (detectedModels.isNotEmpty()) { Box { OutlinedButton(onClick = { isModelDropdownExpanded = true }, modifier = Modifier.fillMaxWidth()) { Text(selectedModel ?: "Select a model"); Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = "Dropdown arrow") }; DropdownMenu(expanded = isModelDropdownExpanded, onDismissRequest = { isModelDropdownExpanded = false }, modifier = Modifier.fillMaxWidth()) { detectedModels.forEach { model -> DropdownMenuItem(text = { Text(model) }, onClick = { selectedModel = model; isModelDropdownExpanded = false }) } } } }
+                when (selectedService) {
+                    "OpenAI" -> {
+                        OutlinedTextField(value = openAiApiKey, onValueChange = { openAiApiKey = it }, label = { Text("Enter your OpenAI API Key here") }, modifier = Modifier.fillMaxWidth(), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, cursorColor = Color.White, focusedBorderColor = userMessageColor, unfocusedBorderColor = Color.Gray))
                     }
+                    "Gemini" -> {
+                        OutlinedTextField(value = geminiApiKey, onValueChange = { geminiApiKey = it }, label = { Text("Enter your Gemini API Key here") }, modifier = Modifier.fillMaxWidth(), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White, cursorColor = Color.White, focusedBorderColor = userMessageColor, unfocusedBorderColor = Color.Gray))
+                    }
+                    "Ollama" -> {
+                        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Ollama support is coming soon!", color = Color.Gray, textAlign = TextAlign.Center)
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(onClick = { showTokenDetailsDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Show Token Details")
                 }
             }
             Row(
@@ -156,36 +125,68 @@ fun SportAnalystChatScreen() {
                     onClick = {
                         val query = userInput.text
                         if (query.isNotBlank()) {
-                            messages = messages + ChatMessage(query, isUser = true)
+                            messages = messages + ChatMessageData(query, isUser = true)
                             userInput = TextFieldValue("")
                             isLoading = true
-                            val aiMessageIndex = messages.size
-                            messages = messages + ChatMessage("", isUser = false)
 
                             coroutineScope.launch {
+                                val aiMessageIndex = messages.size
+                                messages = messages + ChatMessageData("", isUser = false)
                                 listState.animateScrollToItem(messages.size)
-                                try {
-                                    val cleanUrl = ollamaUrl.trimEnd('/')
-                                    if (cleanUrl.isBlank() || selectedModel == null) throw IllegalStateException("Ollama URL or model not selected.")
 
-                                    val response: OllamaGenerateResponse = client.post("$cleanUrl/api/generate/") {
-                                        contentType(ContentType.Application.Json)
-                                        setBody(OllamaGenerateRequest(model = selectedModel!!, prompt = query, stream = false))
-                                    }.body()
+                                when (selectedService) {
+                                    "OpenAI" -> {
+                                        try {
+                                            if (openAiApiKey.isBlank()) throw IllegalStateException("OpenAI API Key is missing.")
+                                            val openAI = OpenAI(openAiApiKey)
+                                            val chatCompletionRequest = ChatCompletionRequest(
+                                                model = ModelId("gpt-3.5-turbo"),
+                                                messages = listOf(
+                                                    ChatMessage(role = ChatRole.System, content = "You are a helpful sports AI assistant."),
+                                                    ChatMessage(role = ChatRole.User, content = query)
+                                                )
+                                            )
+                                            val completion = openAI.chatCompletion(chatCompletionRequest)
+                                            promptTokens = completion.usage?.promptTokens ?: 0
+                                            responseTokens = completion.usage?.completionTokens ?: 0
+                                            val aiResponse = completion.choices.first().message.content ?: "No response from API."
+                                            messages = messages.toMutableList().also { it[aiMessageIndex] = it[aiMessageIndex].copy(text = aiResponse) }
 
-                                    messages = messages.toMutableList().also { list -> list[aiMessageIndex] = list[aiMessageIndex].copy(text = response.response) }
-                                    listState.animateScrollToItem(messages.size - 1)
-
-                                } catch (e: Exception) {
-                                    val errorMessage = when(e) {
-                                        is IllegalStateException -> "Please enter the Ollama URL and detect a model first."
-                                        is java.net.ConnectException -> "Connection failed. Verify the IP address and that Ollama is running on your computer. Also check your computer's firewall."
-                                        else -> "An error occurred: ${e.message}"
+                                        } catch (e: Exception) {
+                                            val errorMessage = "Error: ${e.message}"
+                                            Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                                            messages = messages.toMutableList().also { it[aiMessageIndex] = it[aiMessageIndex].copy(text = errorMessage) }
+                                        } finally {
+                                            isLoading = false
+                                            listState.animateScrollToItem(messages.size - 1)
+                                        }
                                     }
-                                    Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
-                                    messages = messages.toMutableList().also { list -> list[aiMessageIndex] = list[aiMessageIndex].copy(text = errorMessage) }
-                                } finally {
-                                    isLoading = false
+                                    "Gemini" -> {
+                                        try {
+                                            if (geminiApiKey.isBlank()) throw IllegalStateException("Gemini API Key is missing.")
+                                            val generativeModel = GenerativeModel(
+                                                modelName = "gemini-pro",
+                                                apiKey = geminiApiKey
+                                            )
+                                            val response = generativeModel.generateContent(query)
+                                            promptTokens = 0 // usageMetadata not available in this version
+                                            responseTokens = 0 // usageMetadata not available in this version
+                                            messages = messages.toMutableList().also { it[aiMessageIndex] = it[aiMessageIndex].copy(text = response.text ?: "No response from API.") }
+                                        } catch (e: Exception) {
+                                            val errorMessage = "Error: ${e.message}"
+                                            Toast.makeText(context, errorMessage, Toast.LENGTH_LONG).show()
+                                            messages = messages.toMutableList().also { it[aiMessageIndex] = it[aiMessageIndex].copy(text = errorMessage) }
+                                        } finally {
+                                            isLoading = false
+                                            listState.animateScrollToItem(messages.size - 1)
+                                        }
+                                    }
+                                    "Ollama" -> {
+                                        val comingSoonMessage = "Sorry, Ollama support is not yet implemented."
+                                        messages = messages.toMutableList().also { it[aiMessageIndex] = it[aiMessageIndex].copy(text = comingSoonMessage) }
+                                        isLoading = false
+                                        listState.animateScrollToItem(messages.size - 1)
+                                    }
                                 }
                             }
                         }
@@ -196,11 +197,60 @@ fun SportAnalystChatScreen() {
                 ) { if (isLoading) { CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp) } else { Text("Analyze") } }
             }
         }
+
+        if (showTokenDetailsDialog) {
+            TokenDetailsDialog(
+                selectedService = selectedService,
+                promptTokens = promptTokens,
+                responseTokens = responseTokens,
+                onDismiss = { showTokenDetailsDialog = false }
+            )
+        }
     }
 }
 
 @Composable
-fun ChatMessageItem(message: ChatMessage, userMessageColor: Color, aiMessageColor: Color) {
+fun TokenDetailsDialog(
+    selectedService: String,
+    promptTokens: Int,
+    responseTokens: Int,
+    onDismiss: () -> Unit
+) {
+    val modelLimit = when (selectedService) {
+        "OpenAI" -> "4,096"
+        "Gemini" -> "32,768"
+        else -> "N/A"
+    }
+    val lastQueryCount = promptTokens + responseTokens
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFF161B22))) {
+            Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                Text("Token Details", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color.White, modifier = Modifier.align(Alignment.CenterHorizontally))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Model Token Limit:", color = Color.Gray)
+                    Text("$modelLimit tokens", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Last Query Token Count:", color = Color.Gray)
+                    Text("$lastQueryCount tokens", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                    Text("Close")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ChatMessageItem(message: ChatMessageData, userMessageColor: Color, aiMessageColor: Color) {
     val horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
     val bubbleColor = if (message.isUser) userMessageColor else aiMessageColor
     val shape = if (message.isUser) { RoundedCornerShape(20.dp, 4.dp, 20.dp, 20.dp) } else { RoundedCornerShape(4.dp, 20.dp, 20.dp, 20.dp) }
@@ -228,6 +278,6 @@ fun ChatMessageItem(message: ChatMessage, userMessageColor: Color, aiMessageColo
 @Composable
 fun SportAnalystScreenPreview() {
     SportAITheme {
-        SportAnalystChatScreen()
+        SportAnalystChatScreen(Intent())
     }
 }
