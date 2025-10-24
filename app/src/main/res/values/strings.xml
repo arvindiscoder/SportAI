@@ -11,4 +11,5 @@
     <string name="new_ollama_chat_short_label">New Ollama Chat</string>
     <string name="new_ollama_chat_long_label">Start a new chat with Ollama</string>
     <string name="new_ollama_chat_disabled_message">Shortcut is disabled</string>
+    <string name="sport_ai_widget_description">A widget to chat with your favorite AI</string>
 </resources>

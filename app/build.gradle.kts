@@ -58,6 +58,10 @@ dependencies {
     // Google Generative AI (Gemini)
     implementation("com.google.ai.client.generativeai:generativeai:0.1.0")
 
+    // Glance
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

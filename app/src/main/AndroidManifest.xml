@@ -14,6 +14,17 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SportAI">
+        <receiver
+            android:name=".widget.SportAIWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sport_ai_widget_info" />
+        </receiver>
         <activity
             android:name=".MainActivity"
             android:exported="true"
